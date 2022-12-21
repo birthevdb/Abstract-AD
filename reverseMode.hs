@@ -20,42 +20,42 @@ import Data.Array.ST
 
 -- Accumulating Multiplications
 
-newtype PW d e = PW { unPW :: d -> e }
+newtype Hom d e = H { unH :: d -> e }
 
-repPW :: SModule d e => e -> PW d e
-repPW e = PW (\d -> d `sact` e)
+repH :: SModule d e => e -> Hom d e
+repH e = H (\d -> d `sact` e)
 
-absPW :: SModule d e => PW d e -> e
-absPW f = unPW f one
+absH :: SModule d e => Hom d e -> e
+absH f = unH f one
 
-instance Semigroup e => Semigroup (PW d e) where
-  PW f <> PW g = PW (\d -> f d <> g d)
+instance Semigroup e => Semigroup (Hom d e) where
+  H f <> H g = H (\d -> f d <> g d)
 
-instance Monoid e => Monoid (PW d e) where
-  mempty               = PW (\d -> mempty)
-  PW f `mappend` PW g  = PW (\d -> f d `mappend` g d)
+instance Monoid e => Monoid (Hom d e) where
+  mempty             = H (\d -> mempty)
+  H f `mappend` H g  = H (\d -> f d `mappend` g d)
 
-instance SModule d e => SModule d (PW d e) where
-  d' `sact` (PW f) = PW (\d -> f (d' `times` d))
+instance SModule d e => SModule d (Hom d e) where
+  d' `sact` (H f) = H (\d -> f (d' `times` d))
 
-instance Kronecker v d e => Kronecker v d (PW d e) where
-  delta v = PW (\d -> d `sact` delta v)
+instance Kronecker v d e => Kronecker v d (Hom d e) where
+  delta v = H (\d -> d `sact` delta v)
 
-instance (Ord v, Semiring d) => Kronecker v d (PW d (Sparse v d)) where
-    delta v = PW (\d -> Sparse $ singleton v d)
+instance (Ord v, Semiring d) => Kronecker v d (Hom d (Sparse v d)) where
+    delta v = H (\d -> Sparse $ singleton v d)
 
-instance CorrectAD v d e => CorrectAD v d (d `PW` e) where
-    rep  = repPW . rep
-    abs  = abs . absPW
+instance CorrectAD v d e => CorrectAD v d (Hom d e) where
+    rep  = repH . rep
+    abs  = abs . absH
 
-reverseAD :: (Ord v, Semiring d) => (v -> d) -> Expr v -> Nagata d (PW d (Sparse v d)) -- Nagata d (d -> Map v d)
+reverseAD :: (Ord v, Semiring d) => (v -> d) -> Expr v -> Nagata d (Hom d (Sparse v d)) -- Nagata d (d -> Map v d)
 reverseAD = abstractAD
 
 example3 :: Expr X
 example3 = Times (Var X) (Times (Plus (Var X) One) (Plus (Var X) (Var X)))
 
 test5 :: Map X Int
-test5 = (sparse . absPW . tanN) (reverseAD (\X -> 5) example3)
+test5 = (sparse . absH . tanN) (reverseAD (\X -> 5) example3)
 -- fromList [(X,170)]
 
 -- Accumulating Additions
@@ -81,18 +81,18 @@ instance SModule d e => SModule d (Cayley e) where
 instance Kronecker v d e => Kronecker v d (Cayley e) where
   delta v =  C (\ e -> e <> delta v)
 
-instance (Ord v, Semiring d) => Kronecker v d (PW d (Cayley (Sparse v d))) where
-  delta v = PW (\d -> C (\e -> Sparse (insertWith plus v d (sparse e))))
+instance (Ord v, Semiring d) => Kronecker v d (Hom d (Cayley (Sparse v d))) where
+  delta v = H (\d -> C (\e -> Sparse (insertWith plus v d (sparse e))))
 
 instance CorrectAD v d e => CorrectAD v d (Cayley e) where
    rep = reprC . rep
    abs = abs . absC
 
-reverseAD_Cayley :: (Ord v, Semiring d) => (v -> d) -> Expr v -> Nagata d (PW d (Cayley (Sparse v d)))
+reverseAD_Cayley :: (Ord v, Semiring d) => (v -> d) -> Expr v -> Nagata d (Hom d (Cayley (Sparse v d)))
 reverseAD_Cayley = abstractAD
 
 test6 :: Map X Int
-test6 = (sparse . absC . absPW . tanN) (reverseAD_Cayley (\X -> 5) example3)
+test6 = (sparse . absC . absH . tanN) (reverseAD_Cayley (\X -> 5) example3)
 -- fromList [(X,170)]
 
 -- Array-based Reverse Mode
@@ -126,10 +126,10 @@ instance Monoid (STCayley v d) where
   mempty = STC $ return ()
 
 instance (Semiring d) => SModule d (STCayley v d) where
-  d `sact` e = undefined -- unused when Mutant is combined with |PW| and awkward to define
+  d `sact` e = undefined -- unused when Mutant is combined with |Hom| and awkward to define
 
-instance (Ix v, Semiring d, Bounded v) => Kronecker v d (d `PW` STCayley v d) where
-  delta v = PW $ \d -> modifyAt (`plus` d) v
+instance (Ix v, Semiring d, Bounded v) => Kronecker v d (Hom d (STCayley v d)) where
+  delta v = H $ \d -> modifyAt (`plus` d) v
 
 instance (Ix v, Bounded v, Semiring d) => Kronecker v d (STCayley v d) where
   delta v = modifyAt (plus one) v
@@ -138,7 +138,7 @@ instance (Ix v, Ord v, Bounded v, Enum v, Semiring d, Eq d) => CorrectAD v d (ST
   rep = repST . rep
   abs = abs   . absST
 
-reverseAD_M  :: (Ix v, Semiring d, Bounded v) => (v -> d) -> Expr v -> Nagata d (d `PW` STCayley v d)
+reverseAD_M  :: (Ix v, Semiring d, Bounded v) => (v -> d) -> Expr v -> Nagata d (Hom d (STCayley v d))
 reverseAD_M = abstractAD
 
 instance Ix X where
@@ -151,5 +151,5 @@ instance Bounded X where
   maxBound = X
 
 test7 :: Map X Int
-test7 = (sparse . absC . absST . absPW . tanN) (reverseAD_M (\X -> 5) example3)
+test7 = (sparse . absC . absST . absH . tanN) (reverseAD_M (\X -> 5) example3)
 -- fromList [(X,170)]

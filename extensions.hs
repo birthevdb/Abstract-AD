@@ -151,12 +151,12 @@ teval' gen (TLet y  se1  se2)  =   let  N f1 df1  =  teval' gen se1
                                         N f2 df2  =  teval' gen2 se2
                                    in   N f2 (letin y df1 df2)
 
-instance (Ord v, Bounded v, Enum v, Eq d, Semiring d) => Letin v d (d `PW` (Cayley (Sparse v d))) where
+instance (Ord v, Bounded v, Enum v, Eq d, Semiring d) => Letin v d (Hom d (Cayley (Sparse v d))) where
   letin y de1 de2
-   = PW (\ n -> (C (\ m -> let  m' = unC (unPW de2 n) m
-                           in   unC (unPW de1 (sparse m' ! y)) m')))
+   = H (\ n -> (C (\ m -> let  m' = unC (unH de2 n) m
+                           in   unC (unH de1 (sparse m' ! y)) m')))
 
 letin2 y de1 de2
-  = PW (\ n -> (C (\ m -> let  old = lookup y (sparse m)
-                               m'  = unC (unPW de2 n) m
-                          in   unC (unPW de1 (sparse m' ! y)) (Sparse (update (const old) y (sparse m'))))))
+  = H (\ n -> (C (\ m -> let  old = lookup y (sparse m)
+                              m'  = unC (unH de2 n) m
+                         in   unC (unH de1 (sparse m' ! y)) (Sparse (update (const old) y (sparse m'))))))
